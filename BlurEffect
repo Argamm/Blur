@@ -1,0 +1,109 @@
+package com.wachanga.pregnancy.onboardingV2.step.journeyResults.ui
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.renderscript.Allocation
+import android.renderscript.Element
+import android.renderscript.RSRuntimeException
+import android.renderscript.RenderScript
+import android.renderscript.ScriptIntrinsicBlur
+import android.util.Log
+
+object RenderScriptBlurHelper {
+
+    /**
+     * Лог cat
+     */
+    private val TAG = RenderScriptBlurHelper::class.java.simpleName
+
+    private const val scaleRatio = 4
+
+    /**
+     * Асинхронное размытие изображения
+     *
+     * [drawable] Изображение для размытия
+     * [radius] Радиус размытия
+     * [context] Контекст, используемый RenderScript
+     * @return Размытое изображение
+     */
+    fun doBlurAsync(drawable: Drawable, radius: Int, context: Context): Bitmap? {
+        if (drawable !is BitmapDrawable) {
+            val conf = Bitmap.Config.ARGB_8888
+            return Bitmap.createBitmap(100, 100, conf)
+        }
+
+        val bitmap = drawable.bitmap
+        return doBlur(bitmap, radius, false, context)
+    }
+
+    /**
+     * Размытие заданного изображения
+     *
+     * [sentBitmap] Изображение для размытия
+     * [radius] Радиус размытия
+     * [canReuseInBitmap] true, если изображение можно повторно использовать без размытия
+     * [context] Контекст, используемый RenderScript, может быть null, если RenderScript отключен
+     * @return Размытое изображение
+     */
+    @SuppressLint("NewApi")
+    fun doBlur(sentBitmap: Bitmap, radius: Int, canReuseInBitmap: Boolean, context: Context): Bitmap? {
+        var bitmap: Bitmap
+
+        if (canReuseInBitmap) {
+            bitmap = sentBitmap
+        } else {
+            bitmap = Bitmap.createScaledBitmap(
+                sentBitmap, sentBitmap.width / scaleRatio,
+                sentBitmap.height / scaleRatio, false
+            )
+        }
+
+        if (bitmap.config == Bitmap.Config.RGB_565) {
+            // RenderScript не работает с RGB_565, поэтому конвертируем в ARGB_8888
+            // (см. http://stackoverflow.com/questions/21563299/
+            // defect-of-image-with-scriptintrinsicblur-from-support-library)
+            bitmap = convertRGB565toARGB888(bitmap)
+        }
+
+        return try {
+            val rs = RenderScript.create(context)
+            val input = Allocation.createFromBitmap(rs, bitmap, Allocation.MipmapControl.MIPMAP_NONE,
+                Allocation.USAGE_SCRIPT)
+            val output = Allocation.createTyped(rs, input.type)
+            val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
+            script.setRadius(radius.toFloat())
+            script.setInput(input)
+            script.forEach(output)
+            output.copyTo(bitmap)
+
+            Bitmap.createScaledBitmap(
+                bitmap, bitmap.width * scaleRatio,
+                bitmap.height * scaleRatio, false
+            )
+        } catch (e: RSRuntimeException) {
+            Log.e(TAG, "Известная ошибка RenderScript: https://code.google.com/p/android/issues/detail?id=71347 продолжайте с FastBlur подходом.")
+            null
+        }
+    }
+
+    /**
+     * Конвертация изображения из RGB_565 в ARGB_8888
+     *
+     * [bitmap] Изображение для конвертации
+     * @return Конвертированное изображение
+     */
+    private fun convertRGB565toARGB888(bitmap: Bitmap): Bitmap {
+        return bitmap.copy(Bitmap.Config.ARGB_8888, true)
+    }
+}
+
+
+/*   val blurredBitmap = context?.let {
+            RenderScriptBlurHelper.doBlurAsync(binding.imgPpregnantKegel.drawable, 14,
+                it
+            )
+        }
+        binding.imgPpregnantKegel.setImageBitmap(blurredBitmap)*/
