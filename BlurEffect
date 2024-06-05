@@ -107,3 +107,22 @@ object RenderScriptBlurHelper {
             )
         }
         binding.imgPpregnantKegel.setImageBitmap(blurredBitmap)*/
+
+
+
+/* fun applyBlur(context: Context, bitmap: Bitmap, radius: Float): Bitmap {
+        val rs = RenderScript.create(context)
+        val input = Allocation.createFromBitmap(rs, bitmap, Allocation.MipmapControl.MIPMAP_FULL, Allocation.USAGE_SCRIPT)
+        val output = Allocation.createTyped(rs, input.type)
+        val script = ScriptIntrinsicBlur.create(rs, Element.U8_4(rs))
+        script.setRadius(radius)
+        script.setInput(input)
+        script.forEach(output)
+        output.copyTo(bitmap)
+        return bitmap
+
+/*    val vectorDrawableBitmap = BitmapFactory.decodeResource(resources, R.drawable.timeeeeeeeeeeee)
+        val blurredBitmap =
+            context?.let { applyBlur(it, vectorDrawableBitmap, 20f) } // Adjust the radius as needed
+        binding.imgTime.setImageBitmap(blurredBitmap)*/
+    }*/
